@@ -15,14 +15,14 @@ TimeZones = "f269a46b-ccf7-5d73-abea-4c690281aa53"
 VegaLite = "112f6efa-9a02-5b7d-90c0-432ed331239a"
 
 [compat]
-DataFrames = "1.8.1"
-Dates = "1.11.0"
-HighFrequencyCovariance = "0.5.2"
-LinearAlgebra = "1.11.0"
-Random = "1.11.0"
-StableRNGs = "1.0.4"
-TimeZones = "1.22.2"
-VegaLite = "3.3.0"
+DataFrames = "^1.8"
+Dates = "^1.11"
+HighFrequencyCovariance = "^0.5"
+LinearAlgebra = "^1.11"
+Random = "^1.11"
+StableRNGs = "^1.0"
+TimeZones = "^1.22"
+VegaLite = "^3.3"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
