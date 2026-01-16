@@ -28,7 +28,7 @@ tob = DataFrame(
 
 # Create ExecutionData and calculate slippage
 exec_data = ExecutionData(fills, metadata, tob)
-add_slippage!(exec_data)
+calculate_slippage!(exec_data)
 
 # View results
 print_slippage_summary(exec_data)</code></pre><h2 id="Refined-Slippage-with-Peer-Assets"><a class="docs-heading-anchor" href="#Refined-Slippage-with-Peer-Assets">Refined Slippage with Peer Assets</a><a id="Refined-Slippage-with-Peer-Assets-1"></a><a class="docs-heading-anchor-permalink" href="#Refined-Slippage-with-Peer-Assets" title="Permalink"></a></h2><p>To use refined slippage with automatic peer selection:</p><pre><code class="language-julia hljs">using RefinedSlippage, DataFrames, HighFrequencyCovariance
@@ -47,7 +47,7 @@ exec_data = ExecutionData(
     peer_return_truncation = 2.0      # Truncate peer returns at ±2σ
 )
 
-add_slippage!(exec_data)
+calculate_slippage!(exec_data)
 
 # Summary now includes both classical and refined slippage
 print_slippage_summary(exec_data, unit=:bps)</code></pre><h2 id="Visualization"><a class="docs-heading-anchor" href="#Visualization">Visualization</a><a id="Visualization-1"></a><a class="docs-heading-anchor-permalink" href="#Visualization" title="Permalink"></a></h2><p>To plot execution markout for a specific execution:</p><pre><code class="language-julia hljs"># Create plot showing price path and cumulative slippage
@@ -67,4 +67,4 @@ peer_weights = Dict(:SPY =&gt; 0.6, :QQQ =&gt; 0.4)
 vols = Dict(:AAPL =&gt; 0.02, :SPY =&gt; 0.015, :QQQ =&gt; 0.025)
 
 exec_data = ExecutionData(fills, metadata, tob, peer_weights, vols)
-add_slippage!(exec_data)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Overview</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Friday 16 January 2026 10:44">Friday 16 January 2026</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+calculate_slippage!(exec_data)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Overview</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Friday 16 January 2026 10:47">Friday 16 January 2026</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
