@@ -62,8 +62,6 @@ jobs:
           julia --project=. -e '
             using Pkg
             Pkg.instantiate()'
-      - name: Generate HTML examples
-        run: julia --project=. examples/z_general_tutorial.jl
       - name: Install docs dependencies
         run: |
           julia --project=docs -e '
