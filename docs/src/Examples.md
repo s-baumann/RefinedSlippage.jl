@@ -87,7 +87,41 @@ save("execution_markout.png", plot)
 
 The plot shows:
 - Top panel: bid/ask prices, arrival price, counterfactual price (if peers available), and fill points
-- Bottom panel: cumulative classical and refined slippage over the execution
+- Bottom panel: cumulative classical, refined, and vs VWAP slippage over the execution
+
+## Vs VWAP Slippage
+
+To calculate vs VWAP slippage, provide market volume data with time intervals:
+
+```julia
+# Market volume data: total volume in each interval
+volume = DataFrame(
+    time_from = [1.0, 1.5, 2.0, 2.5],
+    time_to = [1.5, 2.0, 2.5, 3.0],
+    symbol = [:AAPL, :AAPL, :AAPL, :AAPL],
+    volume = [1000, 500, 800, 1200]
+)
+
+# Create ExecutionData with volume
+exec_data = ExecutionData(fills, metadata, tob; volume=volume)
+calculate_slippage!(exec_data)
+
+# Summary now includes vs VWAP slippage
+print_slippage_summary(exec_data)
+```
+
+Market VWAP is estimated using TOB mid-prices weighted by the volume in each interval.
+
+You can combine volume data with peer data to get all three metrics:
+
+```julia
+exec_data = ExecutionData(
+    fills, metadata, tob, covar;
+    volume = volume,
+    num_peers = 5,
+    peer_return_truncation = 2.0
+)
+```
 
 ## Manual Peer Weights
 

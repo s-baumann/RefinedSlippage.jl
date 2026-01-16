@@ -3,7 +3,7 @@ using RefinedSlippage, LinearAlgebra, DataFrames, DataFramesMeta, Random, HighFr
 # =============================================================================
 # Configuration
 # =============================================================================
-const NUM_EXECUTIONS = 200  # Number of executions to generate
+const NUM_EXECUTIONS = 20  # Number of executions to generate
 const FILLS_PER_EXECUTION = 10  # Number of fills per execution
 const TICKS_BETWEEN_EXECUTIONS = 500  # Time gap between execution windows
 
@@ -30,13 +30,19 @@ bidask[!, :Value] .= exp.(bidask.Value)
 rename!(bidask, Dict(:Time => :time, :Name => :symbol, :Value => :bid_price))
 bidask[:, :ask_price] = bidask[:, :bid_price] .* (1.0025 .+ (0.0025 .* rand(twister, size(bidask,1))))
 
-# Create volume data
+# Create volume data for all assets
 volume_times = unique(bidask.time[1:50:end])
-volume_df = DataFrame(
-    time_from = volume_times[1:end-1],
-    time_to = volume_times[2:end],
-    volume = rand(twister, 50000:200000, length(volume_times)-1)
-)
+n_intervals = length(volume_times) - 1
+volume_dfs = DataFrame[]
+for asset in assets
+    push!(volume_dfs, DataFrame(
+        time_from = volume_times[1:end-1],
+        time_to = volume_times[2:end],
+        symbol = fill(asset, n_intervals),
+        volume = rand(twister, 50000:200000, n_intervals)
+    ))
+end
+volume_df = reduce(vcat, volume_dfs)
 
 # =============================================================================
 # Generate executions - each uses a different time window (different realization)

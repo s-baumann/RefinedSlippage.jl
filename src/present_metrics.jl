@@ -10,7 +10,7 @@ Print a formatted summary of slippage statistics across all executions.
 - `unit`: One of `:bps` (basis points), `:pct` (percentage), or `:usd` (dollar value)
 
 # Output
-Prints mean and standard deviation of classical slippage (and refined slippage if peers available).
+Prints mean and standard deviation of classical slippage (and refined/vs_vwap if available).
 """
 function print_slippage_summary(exec_data::ExecutionData; unit::Symbol=:bps)
     if ismissing(exec_data.summary)
@@ -19,6 +19,7 @@ function print_slippage_summary(exec_data::ExecutionData; unit::Symbol=:bps)
 
     summary_df = exec_data.summary[unit]
     has_refined = "refined_slippage" in names(summary_df)
+    has_vs_vwap = "vs_vwap_slippage" in names(summary_df)
 
     # Get unit label
     unit_label = if unit == :bps
@@ -63,6 +64,18 @@ function print_slippage_summary(exec_data::ExecutionData; unit::Symbol=:bps)
         println("\nComparison:")
         println("  Mean difference:   $(round(mean_diff, digits=2)) $unit_label")
         println("  Std Dev reduction: $(round(std_reduction, digits=1))%")
+    end
+
+    # Vs VWAP slippage stats (if available)
+    if has_vs_vwap
+        vwap_mean = mean(summary_df.vs_vwap_slippage)
+        vwap_std = std(summary_df.vs_vwap_slippage)
+        vwap_var = var(summary_df.vs_vwap_slippage)
+
+        println("\nVs VWAP Slippage:")
+        println("  Mean:              $(round(vwap_mean, digits=2)) $unit_label")
+        println("  Std Dev:           $(round(vwap_std, digits=2)) $unit_label")
+        println("  Variance:          $(round(vwap_var, digits=2)) $(unit_label)^2")
     end
 
     # Spread crossing
@@ -155,13 +168,24 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
     cum_classical_slippage = side_sign .* cum_classical_cost ./ (cum_qty .* arrival_price) .* 10000
 
     has_refined = "counterfactual_price" in names(exec_data.fill_returns)
+    has_vwap = "market_vwap" in names(exec_data.fill_returns)
+
+    # Get fill_returns for this execution (needed for refined and/or vwap)
+    fill_returns_exec = exec_data.fill_returns[
+        exec_data.fill_returns.execution_name .== execution_name, :]
+    fill_returns_sorted = sort(fill_returns_exec, :time)
+
+    # Build slippage data starting with classical
+    slippage_data = DataFrame(
+        time = sorted_fills.time,
+        slippage = cum_classical_slippage,
+        type = fill("Classical", length(cum_classical_slippage))
+    )
+
+    cum_refined_slippage = nothing
+    cum_vs_vwap_slippage = nothing
 
     if has_refined
-        # Get counterfactual prices
-        fill_returns_exec = exec_data.fill_returns[
-            exec_data.fill_returns.execution_name .== execution_name, :]
-        fill_returns_sorted = sort(fill_returns_exec, :time)
-
         # Create counterfactual price line data
         counterfactual_data = DataFrame(
             time = fill_returns_sorted.time,
@@ -176,26 +200,40 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
                                    fill_returns_sorted.quantity)
         cum_refined_slippage = side_sign .* cum_refined_cost ./ (cum_qty .* arrival_price) .* 10000
 
-        slippage_data = vcat(
-            DataFrame(
-                time = sorted_fills.time,
-                slippage = cum_classical_slippage,
-                type = fill("Classical", length(cum_classical_slippage))
-            ),
-            DataFrame(
-                time = sorted_fills.time,
-                slippage = cum_refined_slippage,
-                type = fill("Refined", length(cum_refined_slippage))
-            )
-        )
+        slippage_data = vcat(slippage_data, DataFrame(
+            time = sorted_fills.time,
+            slippage = cum_refined_slippage,
+            type = fill("Refined", length(cum_refined_slippage))
+        ))
     else
         price_lines = vcat(bid_data, ask_data, arrival_data)
+    end
 
-        slippage_data = DataFrame(
+    # Add vs_vwap if market_vwap is available
+    if has_vwap && !all(ismissing, fill_returns_sorted.market_vwap)
+        # Calculate cumulative fill VWAP and compare to market VWAP at each point
+        cum_fill_value = cumsum(fill_returns_sorted.price .* fill_returns_sorted.quantity)
+        cum_fill_vwap = cum_fill_value ./ cum_qty
+
+        # Get market VWAP at each fill time (already cumulative from calculation)
+        market_vwaps = fill_returns_sorted.market_vwap
+
+        # Calculate cumulative vs_vwap slippage where market_vwap is not missing
+        cum_vs_vwap_slippage = Float64[]
+        for i in 1:length(market_vwaps)
+            if ismissing(market_vwaps[i])
+                push!(cum_vs_vwap_slippage, NaN)
+            else
+                vs_vwap = side_sign * (cum_fill_vwap[i] - market_vwaps[i]) / arrival_price * 10000
+                push!(cum_vs_vwap_slippage, vs_vwap)
+            end
+        end
+
+        slippage_data = vcat(slippage_data, DataFrame(
             time = sorted_fills.time,
-            slippage = cum_classical_slippage,
-            type = fill("Classical", length(cum_classical_slippage))
-        )
+            slippage = cum_vs_vwap_slippage,
+            type = fill("Vs VWAP", length(cum_vs_vwap_slippage))
+        ))
     end
 
     # Get summary statistics for this execution
@@ -203,7 +241,8 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
     exec_summary = summary_df[summary_df.execution_name .== execution_name, :]
 
     final_classical = cum_classical_slippage[end]
-    final_refined = has_refined ? cum_refined_slippage[end] : missing
+    final_refined = has_refined && !isnothing(cum_refined_slippage) ? cum_refined_slippage[end] : missing
+    final_vs_vwap = has_vwap && !isnothing(cum_vs_vwap_slippage) && !isempty(cum_vs_vwap_slippage) ? cum_vs_vwap_slippage[end] : missing
     spread_cross_pct = nrow(exec_summary) > 0 ? exec_summary[1, :spread_cross_pct] * 100 : missing
 
     # Create top panel: Price markout
@@ -257,12 +296,28 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
     )
 
     # Create text for summary statistics (to be placed below the chart)
-    stats_text_combined = if has_refined && !ismissing(spread_cross_pct)
-        "Classical: $(round(final_classical, digits=1)) bps  |  Refined: $(round(final_refined, digits=1)) bps  |  Spread Cross: $(round(spread_cross_pct, digits=1))%"
-    elseif !ismissing(spread_cross_pct)
-        "Classical: $(round(final_classical, digits=1)) bps  |  Spread Cross: $(round(spread_cross_pct, digits=1))%"
-    else
-        "Classical: $(round(final_classical, digits=1)) bps"
+    stats_parts = ["Classical: $(round(final_classical, digits=1)) bps"]
+    if has_refined && !ismissing(final_refined)
+        push!(stats_parts, "Refined: $(round(final_refined, digits=1)) bps")
+    end
+    if has_vwap && !ismissing(final_vs_vwap) && !isnan(final_vs_vwap)
+        push!(stats_parts, "Vs VWAP: $(round(final_vs_vwap, digits=1)) bps")
+    end
+    if !ismissing(spread_cross_pct)
+        push!(stats_parts, "Spread Cross: $(round(spread_cross_pct, digits=1))%")
+    end
+    stats_text_combined = join(stats_parts, "  |  ")
+
+    # Build domain and range for slippage legend
+    slippage_domain = ["Classical"]
+    slippage_range = ["#8B4513"]  # brown for classical
+    if has_refined
+        push!(slippage_domain, "Refined")
+        push!(slippage_range, "#000000")  # black for refined
+    end
+    if has_vwap && !isnothing(cum_vs_vwap_slippage) && !isempty(cum_vs_vwap_slippage)
+        push!(slippage_domain, "Vs VWAP")
+        push!(slippage_range, "#4169E1")  # royal blue for vs_vwap
     end
 
     # Create bottom panel: Cumulative slippage with legend
@@ -280,8 +335,8 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
                 type=:nominal,
                 title="Slippage Type",
                 scale={
-                    domain=has_refined ? ["Classical", "Refined"] : ["Classical"],
-                    range=has_refined ? ["#8B4513", "#000000"] : ["#8B4513"]
+                    domain=slippage_domain,
+                    range=slippage_range
                 },
                 legend={
                     orient="right",

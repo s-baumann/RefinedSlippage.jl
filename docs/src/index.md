@@ -1,14 +1,18 @@
 ## Overview
 
-RefinedSlippage.jl measures execution slippage - the difference between arrival price and actual fill prices. It computes both classical slippage (raw price impact) and refined slippage (market-adjusted using peer assets).
+RefinedSlippage.jl measures execution slippage - the difference between arrival price and actual fill prices. It computes classical slippage (raw price impact), refined slippage (market-adjusted using peer assets), and vs VWAP slippage (compared to market VWAP).
 
-## Classical vs Refined Slippage
+## Slippage Metrics
+
+### Classical Slippage
 
 Classical slippage measures the direct cost of execution relative to the arrival price:
 
 $$\text{Classical Slippage} = \frac{\sum (p_i - p_0) q_i}{\sum q_i \cdot p_0}$$
 
 where $p_i$ is the fill price, $p_0$ is the arrival price, and $q_i$ is the fill quantity.
+
+### Refined Slippage
 
 Refined slippage adjusts for market movements by constructing a counterfactual price from correlated peer assets:
 
@@ -17,6 +21,14 @@ $$\text{Refined Slippage} = \frac{\sum (p_i - \hat{p}_i) q_i}{\sum q_i \cdot p_0
 where $\hat{p}_i$ is the counterfactual price based on peer asset returns.
 
 The peer weights are determined by bilateral correlations from a covariance matrix. Returns from peer assets can be truncated at a specified number of standard deviations to reduce the impact of outliers.
+
+### Vs VWAP Slippage
+
+Vs VWAP slippage compares your execution VWAP to the market VWAP during the order:
+
+$$\text{Vs VWAP Slippage} = \frac{\text{Fill VWAP} - \text{Market VWAP}}{p_0}$$
+
+This requires providing market volume data (all trades, not just your fills) during the execution window.
 
 ## Main Components
 

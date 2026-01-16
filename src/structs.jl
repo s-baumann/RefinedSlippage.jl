@@ -36,7 +36,7 @@ end
     - `fills::DataFrame`: Fill data with columns `:time`, `:quantity`, `:price`, `:execution_name`, `:asset`
     - `metadata::DataFrame`: Execution metadata with columns `:execution_name`, `:side`, `:desired_quantity`, (optional: `:arrival_price`)
     - `tob::DataFrame`: Top-of-book prices with columns `:time`, `:symbol`, `:bid_price`, `:ask_price`
-    - `volume::Union{Missing,DataFrame}`: Optional volume data with columns `:time_from`, `:time_to`, `:volume`
+    - `volume::Union{Missing,DataFrame}`: Optional market volume data with columns `:time_from`, `:time_to`, `:symbol`, `:volume` for vs_vwap calculation. Market VWAP is estimated using TOB mid-prices weighted by volume.
     - `peers::Union{Missing,DataFrame}`: Optional peer weights with columns `:execution_name`, `:peer`, `:weight`
     - `vols::Union{Missing,DataFrame}`: Optional volatilities with columns `:asset`, `:volatility` (hourly vol)
     - `peer_return_truncation::Float64`: Truncation threshold for peer returns (in multiples of volatility). Default 2.0, use Inf to disable.
@@ -79,7 +79,7 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame;
     validate_column_existance(tob, [:time, :symbol, :bid_price, :ask_price], "tob", namemap)
     # Validate volume if provided
     if !ismissing(volume)
-        validate_column_existance(volume, [:time_from, :time_to, :volume], "volume", namemap)
+        validate_column_existance(volume, [:time_from, :time_to, :symbol, :volume], "volume", namemap)
     end
     ExecutionData(fills, metadata, tob, volume, missing, missing, Inf, missing, missing)
 end
@@ -100,7 +100,7 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame, pe
     validate_column_existance(peers, [:execution_name, :peer, :weight], "peers", namemap)
     # Validate volume if provided
     if !ismissing(volume)
-        validate_column_existance(volume, [:time_from, :time_to, :volume], "volume", namemap)
+        validate_column_existance(volume, [:time_from, :time_to, :symbol, :volume], "volume", namemap)
     end
     # If vols not provided, truncation won't occur (set to Inf internally)
     effective_truncation = ismissing(vols) ? Inf : peer_return_truncation
@@ -121,7 +121,7 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame, co
     validate_column_existance(tob, [:time, :symbol, :bid_price, :ask_price], "tob", namemap)
     # Validate volume if provided
     if !ismissing(volume)
-        validate_column_existance(volume, [:time_from, :time_to, :volume], "volume", namemap)
+        validate_column_existance(volume, [:time_from, :time_to, :symbol, :volume], "volume", namemap)
     end
 
     # Extract covariance matrix and correlation matrix
