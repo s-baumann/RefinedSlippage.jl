@@ -348,6 +348,6 @@ end
         @test exec_data.summary[:usd].vs_vwap_slippage[1] ≈ expected_bps / 10000 * 100 * 200 atol=0.1
 
         print_slippage_summary(exec_data)
-        plot_execution_markout(exec_data; execution_name="test_units")
+        plot_execution_markout(exec_data; "test_units")
     end
 end
