@@ -567,7 +567,197 @@ end
         print_slippage_summary(exec_data; unit=:bps)
         print_slippage_summary(exec_data; unit=:pct) 
         print_slippage_summary(exec_data; unit=:usd)
-        plot_execution_markout(exec_data, "test_sell"; window_before=5.0, window_after=5.0) 
+        plot_execution_markout(exec_data, "test_sell"; window_before=5.0, window_after=5.0)
 
+    end
+
+    @testset "User-defined peers with multiple fills" begin
+        # Test the constructor that takes a user-provided peers DataFrame
+        # instead of calculating from covariance matrix
+
+        Random.seed!(555)
+        n_obs = 100
+        assets = [:AAPL, :SPY, :QQQ, :IWM]
+        times = collect(1.0:100.0)
+
+        # Create correlated price series
+        base_returns = randn(n_obs) .* 0.012
+        prices = Dict{Symbol, Vector{Float64}}()
+        for (i, asset) in enumerate(assets)
+            noise = randn(n_obs) .* 0.004
+            prices[asset] = cumprod(1.0 .+ base_returns .+ noise) .* (100.0 + i*25)
+        end
+
+        # Create fills
+        fill_times = [12.0, 28.0, 45.0, 67.0, 88.0]
+        fill_qtys = [150, 100, 200, 75, 125]
+        fill_prices = [prices[:AAPL][Int(t)] * (1 + 0.004*randn()) for t in fill_times]
+
+        fills = DataFrame(
+            time = fill_times,
+            quantity = fill_qtys,
+            price = fill_prices,
+            execution_name = fill("test_user_peers", length(fill_times)),
+            asset = fill(:AAPL, length(fill_times))
+        )
+
+        arrival_price = prices[:AAPL][5]
+        metadata = DataFrame(
+            execution_name = ["test_user_peers"],
+            arrival_price = [arrival_price],
+            side = ["buy"],
+            desired_quantity = [sum(fill_qtys)]
+        )
+
+        # Create TOB
+        tob_rows = []
+        for t in times
+            for asset in assets
+                push!(tob_rows, (
+                    time = t,
+                    symbol = asset,
+                    bid_price = prices[asset][Int(t)] * 0.998,
+                    ask_price = prices[asset][Int(t)] * 1.002
+                ))
+            end
+        end
+        tob = DataFrame(tob_rows)
+
+        # Manually define peers with specific weights
+        # These weights are arbitrary but should sum reasonably
+        peers = DataFrame(
+            execution_name = ["test_user_peers", "test_user_peers", "test_user_peers"],
+            peer = [:SPY, :QQQ, :IWM],
+            weight = [0.5, 0.3, 0.2]
+        )
+
+        # Create ExecutionData with user-defined peers
+        exec_data = ExecutionData(fills, metadata, tob, peers)
+
+        # Verify peers DataFrame was stored correctly
+        @test nrow(exec_data.peers) == 3
+        @test Set(exec_data.peers.peer) == Set([:SPY, :QQQ, :IWM])
+        @test sum(exec_data.peers.weight) ≈ 1.0 atol=0.001
+
+        calculate_slippage!(exec_data)
+
+        summary = exec_data.summary[:bps]
+
+        # Calculate expected values manually using the user-defined weights
+        # (not from covariance - just using the weights directly)
+        expected_classical = manually_calculate_classical_slippage(fills, metadata)
+        expected_spread_cross = manually_calculate_spread_cross_pct(fills, metadata, tob)
+
+        # For refined slippage, pass the user-defined peers directly
+        # The covar_matrix/labels args aren't used in manually_calculate_refined_slippage
+        # when peers are already provided with weights
+        dummy_covar = zeros(4, 4)  # Not used since we have direct weights
+        dummy_labels = assets
+        expected_refined = manually_calculate_refined_slippage(fills, metadata, tob, peers, dummy_covar, dummy_labels)
+
+        @test summary.classical_slippage[1] ≈ expected_classical atol=0.1
+        @test summary.spread_cross_pct[1] ≈ expected_spread_cross atol=0.001
+        @test summary.refined_slippage[1] ≈ expected_refined atol=0.1
+
+        # Also test with vols provided (enables return truncation)
+        vols = DataFrame(
+            asset = [:SPY, :QQQ, :IWM],
+            volatility = [0.02, 0.025, 0.022]  # hourly volatilities
+        )
+
+        exec_data_with_vols = ExecutionData(fills, metadata, tob, peers; vols=vols, peer_return_truncation=2.0)
+        calculate_slippage!(exec_data_with_vols)
+
+        summary_vols = exec_data_with_vols.summary[:bps]
+
+        # Should still produce valid results
+        @test !isnan(summary_vols.classical_slippage[1])
+        @test !isnan(summary_vols.refined_slippage[1])
+        @test summary_vols.classical_slippage[1] ≈ expected_classical atol=0.1
+    end
+
+    @testset "User-defined peers - multiple executions" begin
+        # Test user-defined peers with multiple separate executions
+
+        Random.seed!(777)
+        n_obs = 100
+        assets = [:AAPL, :MSFT, :SPY, :QQQ]
+        times = collect(1.0:100.0)
+
+        base_returns = randn(n_obs) .* 0.01
+        prices = Dict{Symbol, Vector{Float64}}()
+        for (i, asset) in enumerate(assets)
+            noise = randn(n_obs) .* 0.003
+            prices[asset] = cumprod(1.0 .+ base_returns .+ noise) .* (100.0 + i*20)
+        end
+
+        # Two separate executions: one buying AAPL, one selling MSFT
+        fills = DataFrame(
+            time = [10.0, 30.0, 50.0, 20.0, 40.0, 60.0],
+            quantity = [100, 150, 100, 200, 100, 150],
+            price = [
+                prices[:AAPL][10] * 1.002,
+                prices[:AAPL][30] * 1.003,
+                prices[:AAPL][50] * 1.001,
+                prices[:MSFT][20] * 0.998,
+                prices[:MSFT][40] * 0.997,
+                prices[:MSFT][60] * 0.999
+            ],
+            execution_name = ["exec_aapl", "exec_aapl", "exec_aapl", "exec_msft", "exec_msft", "exec_msft"],
+            asset = [:AAPL, :AAPL, :AAPL, :MSFT, :MSFT, :MSFT]
+        )
+
+        metadata = DataFrame(
+            execution_name = ["exec_aapl", "exec_msft"],
+            arrival_price = [prices[:AAPL][5], prices[:MSFT][15]],
+            side = ["buy", "sell"],
+            desired_quantity = [350, 450]
+        )
+
+        tob_rows = []
+        for t in times
+            for asset in assets
+                push!(tob_rows, (
+                    time = t,
+                    symbol = asset,
+                    bid_price = prices[asset][Int(t)] * 0.999,
+                    ask_price = prices[asset][Int(t)] * 1.001
+                ))
+            end
+        end
+        tob = DataFrame(tob_rows)
+
+        # Different peers for each execution
+        peers = DataFrame(
+            execution_name = ["exec_aapl", "exec_aapl", "exec_msft", "exec_msft"],
+            peer = [:SPY, :QQQ, :SPY, :QQQ],
+            weight = [0.6, 0.4, 0.5, 0.5]
+        )
+
+        exec_data = ExecutionData(fills, metadata, tob, peers)
+        calculate_slippage!(exec_data)
+
+        summary = exec_data.summary[:bps]
+
+        # Should have results for both executions
+        @test nrow(summary) == 2
+        @test Set(summary.execution_name) == Set(["exec_aapl", "exec_msft"])
+
+        # Verify manual calculations for each execution separately
+        fills_aapl = filter(r -> r.execution_name == "exec_aapl", fills)
+        metadata_aapl = filter(r -> r.execution_name == "exec_aapl", metadata)
+        peers_aapl = filter(r -> r.execution_name == "exec_aapl", peers)
+
+        expected_classical_aapl = manually_calculate_classical_slippage(fills_aapl, metadata_aapl)
+        summary_aapl = filter(r -> r.execution_name == "exec_aapl", summary)
+        @test summary_aapl.classical_slippage[1] ≈ expected_classical_aapl atol=0.1
+
+        fills_msft = filter(r -> r.execution_name == "exec_msft", fills)
+        metadata_msft = filter(r -> r.execution_name == "exec_msft", metadata)
+        peers_msft = filter(r -> r.execution_name == "exec_msft", peers)
+
+        expected_classical_msft = manually_calculate_classical_slippage(fills_msft, metadata_msft)
+        summary_msft = filter(r -> r.execution_name == "exec_msft", summary)
+        @test summary_msft.classical_slippage[1] ≈ expected_classical_msft atol=0.1
     end
 end
