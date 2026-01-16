@@ -27,4 +27,6 @@ The peer weights are determined by bilateral correlations from a covariance matr
 
 ## Peer Selection
 
-When a covariance matrix is provided, the package selects peer assets with the highest bilateral correlation to the traded asset. The `num_peers` parameter controls how many peers to use. Peer returns can be truncated at `peer_return_truncation` standard deviations (default 2.0) to handle extreme events.
+When a covariance matrix is provided, the package selects peer assets with the highest bilateral correlation to the traded asset. The `num_peers` parameter controls how many peers to use.
+
+Peer returns can also be truncated at `peer_return_truncation` standard deviations (default 2.0) so your counterfactual price and refined slippage is not too impacted by extreme events.
