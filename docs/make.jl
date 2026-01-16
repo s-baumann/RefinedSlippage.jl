@@ -11,6 +11,7 @@ makedocs(
 
 deploydocs(
     repo   = "github.com/s-baumann/RefinedSlippage.jl.git",
+    devbranch = "main",
     target = "build",
     deps   = nothing,
     make   = nothing

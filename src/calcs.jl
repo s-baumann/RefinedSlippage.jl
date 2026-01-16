@@ -1,6 +1,6 @@
 
 """
-    add_slippage!(exec_data::ExecutionData)
+    calculate_slippage!(exec_data::ExecutionData)
 
 Calculate slippage metrics and store results in `exec_data.summary` and `exec_data.fill_returns`.
 
@@ -13,7 +13,7 @@ Use `get_slippage(exec_data, :bps)` to retrieve the desired format.
 # Returns
 - `exec_data`: The modified ExecutionData with `summary` and `fill_returns` populated.
 """
-function add_slippage!(exec_data::ExecutionData)
+function calculate_slippage!(exec_data::ExecutionData)
     fills = exec_data.fills
     metadata = exec_data.metadata
     tob = exec_data.tob
