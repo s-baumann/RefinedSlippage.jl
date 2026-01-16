@@ -14,7 +14,7 @@ Prints mean and standard deviation of classical slippage (and refined slippage i
 """
 function print_slippage_summary(exec_data::ExecutionData; unit::Symbol=:bps)
     if ismissing(exec_data.summary)
-        error("Slippage not yet calculated. Run add_slippage!(exec_data) first.")
+        error("Slippage not yet calculated. Run calculate_slippage!(exec_data) first.")
     end
 
     summary_df = exec_data.summary[unit]
@@ -92,7 +92,7 @@ VegaLite plot specification
 function plot_execution_markout(exec_data::ExecutionData, execution_name::String;
                                 window_before::Real=0, window_after::Real=0)
     if ismissing(exec_data.fill_returns)
-        error("Slippage not yet calculated. Run add_slippage!(exec_data) first.")
+        error("Slippage not yet calculated. Run calculate_slippage!(exec_data) first.")
     end
 
     # Get execution data

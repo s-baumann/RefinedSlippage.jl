@@ -127,7 +127,7 @@ println("TEST 1: ExecutionData with covariance matrix (refined slippage)")
 println("=" ^ 80)
 
 exec_data_with_peers = ExecutionData(fills, metadata_df, bidask, true_covar; volume=volume_df)
-add_slippage!(exec_data_with_peers)
+calculate_slippage!(exec_data_with_peers)
 
 println("\nSlippage Summary in BPS (first 10 rows):")
 println(first(get_slippage!(exec_data_with_peers, :bps), 10))
@@ -155,7 +155,7 @@ println("TEST 2: ExecutionData without peers (classical slippage only)")
 println("=" ^ 80)
 
 exec_data_no_peers = ExecutionData(fills, metadata_df, bidask; volume=volume_df)
-add_slippage!(exec_data_no_peers)
+calculate_slippage!(exec_data_no_peers)
 
 println("\nSlippage Summary in BPS (first 10 rows):")
 println(first(get_slippage!(exec_data_no_peers, :bps), 10))
@@ -179,7 +179,7 @@ println("=" ^ 80)
 println("\n--- Example 3a: Default truncation (2 sigma) ---")
 exec_data_trunc_2 = ExecutionData(fills, metadata_df, bidask, true_covar;
                                   volume=volume_df, peer_return_truncation=2.0)
-add_slippage!(exec_data_trunc_2)
+calculate_slippage!(exec_data_trunc_2)
 bps_trunc_2 = get_slippage!(exec_data_trunc_2, :bps)
 println("Refined Slippage - Mean: $(round(mean(bps_trunc_2.refined_slippage), digits=2)) bps, Std: $(round(std(bps_trunc_2.refined_slippage), digits=2)) bps")
 
@@ -187,7 +187,7 @@ println("Refined Slippage - Mean: $(round(mean(bps_trunc_2.refined_slippage), di
 println("\n--- Example 3b: Tighter truncation (1 sigma) ---")
 exec_data_trunc_1 = ExecutionData(fills, metadata_df, bidask, true_covar;
                                   volume=volume_df, peer_return_truncation=1.0)
-add_slippage!(exec_data_trunc_1)
+calculate_slippage!(exec_data_trunc_1)
 bps_trunc_1 = get_slippage!(exec_data_trunc_1, :bps)
 println("Refined Slippage - Mean: $(round(mean(bps_trunc_1.refined_slippage), digits=2)) bps, Std: $(round(std(bps_trunc_1.refined_slippage), digits=2)) bps")
 
@@ -195,7 +195,7 @@ println("Refined Slippage - Mean: $(round(mean(bps_trunc_1.refined_slippage), di
 println("\n--- Example 3c: Looser truncation (3 sigma) ---")
 exec_data_trunc_3 = ExecutionData(fills, metadata_df, bidask, true_covar;
                                   volume=volume_df, peer_return_truncation=3.0)
-add_slippage!(exec_data_trunc_3)
+calculate_slippage!(exec_data_trunc_3)
 bps_trunc_3 = get_slippage!(exec_data_trunc_3, :bps)
 println("Refined Slippage - Mean: $(round(mean(bps_trunc_3.refined_slippage), digits=2)) bps, Std: $(round(std(bps_trunc_3.refined_slippage), digits=2)) bps")
 
@@ -203,7 +203,7 @@ println("Refined Slippage - Mean: $(round(mean(bps_trunc_3.refined_slippage), di
 println("\n--- Example 3d: No truncation (Inf) ---")
 exec_data_no_trunc = ExecutionData(fills, metadata_df, bidask, true_covar;
                                    volume=volume_df, peer_return_truncation=Inf)
-add_slippage!(exec_data_no_trunc)
+calculate_slippage!(exec_data_no_trunc)
 bps_no_trunc = get_slippage!(exec_data_no_trunc, :bps)
 println("Refined Slippage - Mean: $(round(mean(bps_no_trunc.refined_slippage), digits=2)) bps, Std: $(round(std(bps_no_trunc.refined_slippage), digits=2)) bps")
 
@@ -211,7 +211,7 @@ println("Refined Slippage - Mean: $(round(mean(bps_no_trunc.refined_slippage), d
 println("\n--- Example 3e: Top 4 peers with 2 sigma truncation ---")
 exec_data_top4 = ExecutionData(fills, metadata_df, bidask, true_covar;
                                volume=volume_df, num_peers=4, peer_return_truncation=2.0)
-add_slippage!(exec_data_top4)
+calculate_slippage!(exec_data_top4)
 bps_top4 = get_slippage!(exec_data_top4, :bps)
 println("Refined Slippage - Mean: $(round(mean(bps_top4.refined_slippage), digits=2)) bps, Std: $(round(std(bps_top4.refined_slippage), digits=2)) bps")
 println("Number of unique peers used: $(length(unique(exec_data_top4.peers.peer)))")

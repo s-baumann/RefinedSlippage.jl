@@ -40,8 +40,8 @@ end
     - `peers::Union{Missing,DataFrame}`: Optional peer weights with columns `:execution_name`, `:peer`, `:weight`
     - `vols::Union{Missing,DataFrame}`: Optional volatilities with columns `:asset`, `:volatility` (hourly vol)
     - `peer_return_truncation::Float64`: Truncation threshold for peer returns (in multiples of volatility). Default 2.0, use Inf to disable.
-    - `fill_returns::Union{Missing,DataFrame}`: Computed by `add_slippage!`, contains fill-level data with counterfactual prices
-    - `summary::Union{Missing,Dict{Symbol,DataFrame}}`: Computed by `add_slippage!`, contains execution-level slippage summary
+    - `fill_returns::Union{Missing,DataFrame}`: Computed by `calculate_slippage!`, contains fill-level data with counterfactual prices
+    - `summary::Union{Missing,Dict{Symbol,DataFrame}}`: Computed by `calculate_slippage!`, contains execution-level slippage summary
 
     # Constructors
     ```julia

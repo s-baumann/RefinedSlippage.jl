@@ -21,7 +21,7 @@ The peer weights are determined by bilateral correlations from a covariance matr
 ## Main Components
 
 * `ExecutionData` - Container for execution fills, metadata, bid/ask data, and optional covariance matrix for peer selection
-* `add_slippage!` - Calculates classical and refined slippage for all executions
+* `calculate_slippage!` - Calculates classical and refined slippage for all executions
 * `print_slippage_summary` - Prints summary statistics
 * `plot_execution_markout` - Visualizes execution price paths and cumulative slippage
 

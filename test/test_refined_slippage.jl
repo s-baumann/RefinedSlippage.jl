@@ -236,7 +236,7 @@ end
         tob = DataFrame(tob_rows)
 
         exec_data = ExecutionData(fills, metadata, tob, covar)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -314,7 +314,7 @@ end
         tob = DataFrame(tob_rows)
 
         exec_data = ExecutionData(fills, metadata, tob, covar)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -391,7 +391,7 @@ end
         tob = DataFrame(tob_rows)
 
         exec_data = ExecutionData(fills, metadata, tob, covar)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -474,7 +474,7 @@ end
         # Should have exactly 2 peers per execution
         @test nrow(exec_data.peers) == 2
 
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -550,7 +550,7 @@ end
         tob = DataFrame(tob_rows)
 
         exec_data = ExecutionData(fills, metadata, tob, covar)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 

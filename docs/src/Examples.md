@@ -34,7 +34,7 @@ tob = DataFrame(
 
 # Create ExecutionData and calculate slippage
 exec_data = ExecutionData(fills, metadata, tob)
-add_slippage!(exec_data)
+calculate_slippage!(exec_data)
 
 # View results
 print_slippage_summary(exec_data)
@@ -61,7 +61,7 @@ exec_data = ExecutionData(
     peer_return_truncation = 2.0      # Truncate peer returns at ±2σ
 )
 
-add_slippage!(exec_data)
+calculate_slippage!(exec_data)
 
 # Summary now includes both classical and refined slippage
 print_slippage_summary(exec_data, unit=:bps)
@@ -101,5 +101,5 @@ peer_weights = Dict(:SPY => 0.6, :QQQ => 0.4)
 vols = Dict(:AAPL => 0.02, :SPY => 0.015, :QQQ => 0.025)
 
 exec_data = ExecutionData(fills, metadata, tob, peer_weights, vols)
-add_slippage!(exec_data)
+calculate_slippage!(exec_data)
 ```

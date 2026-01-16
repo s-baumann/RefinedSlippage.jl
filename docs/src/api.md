@@ -17,7 +17,7 @@ ExecutionData
 ## Slippage Calculation
 
 ```@docs
-add_slippage!
+calculate_slippage!
 get_slippage!
 ```
 

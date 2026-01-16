@@ -47,7 +47,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -99,7 +99,7 @@ end
         )
 
         exec_data_sell = ExecutionData(fills_sell, metadata_sell, tob)
-        add_slippage!(exec_data_sell)
+        calculate_slippage!(exec_data_sell)
 
         summary_sell = exec_data_sell.summary[:bps]
 
@@ -136,7 +136,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -173,7 +173,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -209,7 +209,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -245,7 +245,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 
@@ -268,7 +268,7 @@ end
         )
 
         exec_data_bid = ExecutionData(fills_at_bid, metadata_bid, tob)
-        add_slippage!(exec_data_bid)
+        calculate_slippage!(exec_data_bid)
         @test exec_data_bid.summary[:bps].spread_cross_pct[1] ≈ 1.0 atol=0.01
 
         # Test buy at ask (worst case = 0.0)
@@ -287,7 +287,7 @@ end
         )
 
         exec_data_ask = ExecutionData(fills_at_ask, metadata_ask, tob)
-        add_slippage!(exec_data_ask)
+        calculate_slippage!(exec_data_ask)
         @test exec_data_ask.summary[:bps].spread_cross_pct[1] ≈ 0.0 atol=0.01
     end
 
@@ -317,7 +317,7 @@ end
         )
 
         exec_data = ExecutionData(fills, metadata, tob)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
 
         summary = exec_data.summary[:bps]
 

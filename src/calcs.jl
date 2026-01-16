@@ -234,7 +234,7 @@ end
 Retrieve slippage summary in the specified unit.
 
 # Arguments
-- `exec_data`: ExecutionData with slippage already calculated via `add_slippage!`
+- `exec_data`: ExecutionData with slippage already calculated via `calculate_slippage!`
 - `unit`: One of `:bps` (basis points), `:pct` (percentage points), or `:usd` (dollar value)
 
 # Returns
@@ -242,7 +242,7 @@ Retrieve slippage summary in the specified unit.
 """
 function get_slippage!(exec_data::ExecutionData, unit::Symbol=:bps)
     if ismissing(exec_data.summary)
-        add_slippage!(exec_data)
+        calculate_slippage!(exec_data)
     end
     if !(unit in [:bps, :pct, :usd])
         error("unit must be one of :bps, :pct, or :usd")
