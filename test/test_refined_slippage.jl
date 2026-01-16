@@ -562,5 +562,12 @@ end
         @test summary.classical_slippage[1] ≈ expected_classical atol=0.1
         @test summary.spread_cross_pct[1] ≈ expected_spread_cross atol=0.001
         @test summary.refined_slippage[1] ≈ expected_refined atol=0.1
+
+        # Testing for presentation methods.
+        print_slippage_summary(exec_data; unit=:bps)
+        print_slippage_summary(exec_data; unit=:pct) 
+        print_slippage_summary(exec_data; unit=:usd)
+        plot_execution_markout(exec_data, "test_sell"; window_before=5.0, window_after=5.0) 
+
     end
 end
