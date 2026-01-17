@@ -1,7 +1,7 @@
 name = "RefinedSlippage"
 uuid = "f102acab-2a34-462b-8f40-530debd6834f"
 authors = ["Stuart Baumann <13663771+s-baumann@users.noreply.github.com>"]
-version = "0.2.0"
+version = "0.1.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
