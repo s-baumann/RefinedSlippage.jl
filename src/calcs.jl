@@ -2,17 +2,17 @@
 """
     calculate_slippage!(exec_data::ExecutionData)
 
-Calculate slippage metrics and store results in `exec_data.summary` and `exec_data.fill_returns`.
+Calculate slippage metrics and store results in `exec_data.summary_bps`, `exec_data.summary_pct`,
+`exec_data.summary_usd`, and `exec_data.fill_returns`.
 
 If `exec_data.peers` is provided, calculates both classical and refined slippage.
 If `exec_data.volume` is provided, calculates vs_vwap slippage (fill VWAP vs market VWAP).
 If `exec_data.peers` is missing, calculates only classical slippage.
 
-Summary is stored as a Dict with keys `:bps`, `:pct`, `:usd` for different units.
-Use `get_slippage(exec_data, :bps)` to retrieve the desired format.
+Use `get_slippage!(exec_data, :bps)` to retrieve the desired format.
 
 # Returns
-- `exec_data`: The modified ExecutionData with `summary` and `fill_returns` populated.
+- `exec_data`: The modified ExecutionData with summary and `fill_returns` populated.
 """
 function calculate_slippage!(exec_data::ExecutionData)
     fills = exec_data.fills
@@ -341,19 +341,15 @@ function calculate_slippage!(exec_data::ExecutionData)
         summary_usd[!, :vs_vwap_slippage] = summary_base.vs_vwap_slippage .* summary_base.arrival_price .* summary_base.total_quantity
     end
 
-    summary = Dict{Symbol,DataFrame}(
-        :bps => summary_bps,
-        :pct => summary_pct,
-        :usd => summary_usd
-    )
-
     exec_data.fill_returns = fill_returns
-    exec_data.summary = summary
+    exec_data.summary_bps = summary_bps
+    exec_data.summary_pct = summary_pct
+    exec_data.summary_usd = summary_usd
     return exec_data
 end
 
 """
-    get_slippage(exec_data::ExecutionData, unit::Symbol=:bps)
+    get_slippage!(exec_data::ExecutionData, unit::Symbol=:bps)
 
 Retrieve slippage summary in the specified unit.
 
@@ -365,11 +361,16 @@ Retrieve slippage summary in the specified unit.
 - DataFrame with slippage metrics in the requested unit
 """
 function get_slippage!(exec_data::ExecutionData, unit::Symbol=:bps)
-    if ismissing(exec_data.summary)
+    if ismissing(exec_data.summary_bps)
         calculate_slippage!(exec_data)
     end
-    if !(unit in [:bps, :pct, :usd])
+    if unit == :bps
+        return exec_data.summary_bps
+    elseif unit == :pct
+        return exec_data.summary_pct
+    elseif unit == :usd
+        return exec_data.summary_usd
+    else
         error("unit must be one of :bps, :pct, or :usd")
     end
-    return exec_data.summary[unit]
 end

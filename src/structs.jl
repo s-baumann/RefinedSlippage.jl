@@ -41,7 +41,9 @@ end
     - `vols::Union{Missing,DataFrame}`: Optional volatilities with columns `:asset`, `:volatility` (hourly vol)
     - `peer_return_truncation::Float64`: Truncation threshold for peer returns (in multiples of volatility). Default 2.0, use Inf to disable.
     - `fill_returns::Union{Missing,DataFrame}`: Computed by `calculate_slippage!`, contains fill-level data with counterfactual prices
-    - `summary::Union{Missing,Dict{Symbol,DataFrame}}`: Computed by `calculate_slippage!`, contains execution-level slippage summary
+    - `summary_bps::Union{Missing,DataFrame}`: Computed by `calculate_slippage!`, slippage summary in basis points
+    - `summary_pct::Union{Missing,DataFrame}`: Computed by `calculate_slippage!`, slippage summary in percentage points
+    - `summary_usd::Union{Missing,DataFrame}`: Computed by `calculate_slippage!`, slippage summary in USD
 
     # Constructors
     ```julia
@@ -64,7 +66,9 @@ mutable struct ExecutionData
     vols::Union{Missing,DataFrame}
     peer_return_truncation::Float64
     fill_returns::Union{Missing,DataFrame}
-    summary::Union{Missing,Dict{Symbol,DataFrame}}
+    summary_bps::Union{Missing,DataFrame}
+    summary_pct::Union{Missing,DataFrame}
+    summary_usd::Union{Missing,DataFrame}
 end
 
 # Constructor without peers (classical slippage only)
@@ -81,7 +85,7 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame;
     if !ismissing(volume)
         validate_column_existance(volume, [:time_from, :time_to, :symbol, :volume], "volume", namemap)
     end
-    ExecutionData(fills, metadata, tob, volume, missing, missing, Inf, missing, missing)
+    ExecutionData(fills, metadata, tob, volume, missing, missing, Inf, missing, missing, missing, missing)
 end
 
 # Constructor with user-provided peers DataFrame
@@ -104,7 +108,7 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame, pe
     end
     # If vols not provided, truncation won't occur (set to Inf internally)
     effective_truncation = ismissing(vols) ? Inf : peer_return_truncation
-    ExecutionData(fills, metadata, tob, volume, peers, vols, effective_truncation, missing, missing)
+    ExecutionData(fills, metadata, tob, volume, peers, vols, effective_truncation, missing, missing, missing, missing)
 end
 
 # Constructor with covariance matrix for automatic peer weight calculation
@@ -191,5 +195,5 @@ function ExecutionData(fills::DataFrame, metadata::DataFrame, tob::DataFrame, co
     end
 
     peers_df = DataFrame(peer_rows)
-    ExecutionData(fills, metadata, tob, volume, peers_df, vols_df, peer_return_truncation, missing, missing)
+    ExecutionData(fills, metadata, tob, volume, peers_df, vols_df, peer_return_truncation, missing, missing, missing, missing)
 end

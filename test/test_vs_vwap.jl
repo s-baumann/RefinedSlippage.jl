@@ -85,7 +85,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob; volume=volume)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         expected_bps = manually_calculate_vs_vwap_slippage(fills, metadata, volume, tob)
 
@@ -130,7 +130,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob; volume=volume)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         expected_bps = manually_calculate_vs_vwap_slippage(fills, metadata, volume, tob)
 
@@ -173,7 +173,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob; volume=volume)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         expected_bps = manually_calculate_vs_vwap_slippage(fills, metadata, volume, tob)
 
@@ -218,7 +218,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob; volume=volume)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         expected_bps = manually_calculate_vs_vwap_slippage(fills, metadata, volume, tob)
 
@@ -254,7 +254,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         @test !(:vs_vwap_slippage in propertynames(summary))
     end
@@ -343,9 +343,9 @@ end
         # vs_vwap = -1 * (102 - 100.5) / 100 = -0.015 = -150 bps
         expected_bps = manually_calculate_vs_vwap_slippage(fills, metadata, volume, tob)
 
-        @test exec_data.summary[:bps].vs_vwap_slippage[1] ≈ expected_bps atol=0.1
-        @test exec_data.summary[:pct].vs_vwap_slippage[1] ≈ expected_bps / 100 atol=0.01
-        @test exec_data.summary[:usd].vs_vwap_slippage[1] ≈ expected_bps / 10000 * 100 * 200 atol=0.1
+        @test exec_data.summary_bps.vs_vwap_slippage[1] ≈ expected_bps atol=0.1
+        @test exec_data.summary_pct.vs_vwap_slippage[1] ≈ expected_bps / 100 atol=0.01
+        @test exec_data.summary_usd.vs_vwap_slippage[1] ≈ expected_bps / 10000 * 100 * 200 atol=0.1
 
         print_slippage_summary(exec_data)
         plot_execution_markout(exec_data, "test_units")

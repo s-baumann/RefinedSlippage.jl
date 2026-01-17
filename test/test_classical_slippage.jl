@@ -49,7 +49,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Manual calculation:
         # Fill 1: price = 101, arrival = 100, qty = 100
@@ -64,10 +64,10 @@ end
         @test summary.classical_slippage[1] ≈ expected_bps atol=0.1
 
         # Verify other units
-        summary_pct = exec_data.summary[:pct]
+        summary_pct = exec_data.summary_pct
         @test summary_pct.classical_slippage[1] ≈ -1.5 atol=0.01
 
-        summary_usd = exec_data.summary[:usd]
+        summary_usd = exec_data.summary_usd
         # USD = slippage_fraction * arrival_price * total_qty = -0.015 * 100 * 200 = -300
         @test summary_usd.classical_slippage[1] ≈ -300.0 atol=0.1
     end
@@ -101,7 +101,7 @@ end
         exec_data_sell = ExecutionData(fills_sell, metadata_sell, tob)
         calculate_slippage!(exec_data_sell)
 
-        summary_sell = exec_data_sell.summary[:bps]
+        summary_sell = exec_data_sell.summary_bps
 
         # Manual calculation:
         expected_bps = manually_calculate_classical_slippage(fills_sell, metadata_sell)
@@ -138,7 +138,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Manual calculation:
         expected_bps = manually_calculate_classical_slippage(fills, metadata)
@@ -175,7 +175,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Manual calculation:
         expected_bps = manually_calculate_classical_slippage(fills, metadata)
@@ -211,7 +211,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Manual calculation:
         expected_bps = manually_calculate_classical_slippage(fills, metadata)
@@ -247,7 +247,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # For buy at mid: (ask - price) / spread = (101 - 100.5) / 1 = 0.5
         @test summary.spread_cross_pct[1] ≈ 0.5 atol=0.01
@@ -269,7 +269,7 @@ end
 
         exec_data_bid = ExecutionData(fills_at_bid, metadata_bid, tob)
         calculate_slippage!(exec_data_bid)
-        @test exec_data_bid.summary[:bps].spread_cross_pct[1] ≈ 1.0 atol=0.01
+        @test exec_data_bid.summary_bps.spread_cross_pct[1] ≈ 1.0 atol=0.01
 
         # Test buy at ask (worst case = 0.0)
         fills_at_ask = DataFrame(
@@ -288,7 +288,7 @@ end
 
         exec_data_ask = ExecutionData(fills_at_ask, metadata_ask, tob)
         calculate_slippage!(exec_data_ask)
-        @test exec_data_ask.summary[:bps].spread_cross_pct[1] ≈ 0.0 atol=0.01
+        @test exec_data_ask.summary_bps.spread_cross_pct[1] ≈ 0.0 atol=0.01
     end
 
     @testset "Multiple executions" begin
@@ -319,7 +319,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         @test nrow(summary) == 2
 

@@ -13,11 +13,19 @@ Print a formatted summary of slippage statistics across all executions.
 Prints mean and standard deviation of classical slippage (and refined/vs_vwap if available).
 """
 function print_slippage_summary(exec_data::ExecutionData; unit::Symbol=:bps)
-    if ismissing(exec_data.summary)
+    if ismissing(exec_data.summary_bps)
         error("Slippage not yet calculated. Run calculate_slippage!(exec_data) first.")
     end
 
-    summary_df = exec_data.summary[unit]
+    summary_df = if unit == :bps
+        exec_data.summary_bps
+    elseif unit == :pct
+        exec_data.summary_pct
+    elseif unit == :usd
+        exec_data.summary_usd
+    else
+        error("unit must be one of :bps, :pct, or :usd")
+    end
     has_refined = "refined_slippage" in names(summary_df)
     has_vs_vwap = "vs_vwap_slippage" in names(summary_df)
 
@@ -237,7 +245,7 @@ function plot_execution_markout(exec_data::ExecutionData, execution_name::String
     end
 
     # Get summary statistics for this execution
-    summary_df = exec_data.summary[:bps]
+    summary_df = exec_data.summary_bps
     exec_summary = summary_df[summary_df.execution_name .== execution_name, :]
 
     final_classical = cum_classical_slippage[end]

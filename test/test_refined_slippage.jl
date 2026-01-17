@@ -238,7 +238,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob, covar)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually
         expected_classical = manually_calculate_classical_slippage(fills, metadata)
@@ -316,7 +316,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob, covar)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually
         expected_classical = manually_calculate_classical_slippage(fills, metadata)
@@ -393,7 +393,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob, covar)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually
         expected_classical = manually_calculate_classical_slippage(fills, metadata)
@@ -476,7 +476,7 @@ end
 
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually
         expected_classical = manually_calculate_classical_slippage(fills, metadata)
@@ -552,7 +552,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob, covar)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually
         expected_classical = manually_calculate_classical_slippage(fills, metadata)
@@ -641,7 +641,7 @@ end
 
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Calculate expected values manually using the user-defined weights
         # (not from covariance - just using the weights directly)
@@ -668,7 +668,7 @@ end
         exec_data_with_vols = ExecutionData(fills, metadata, tob, peers; vols=vols, peer_return_truncation=2.0)
         calculate_slippage!(exec_data_with_vols)
 
-        summary_vols = exec_data_with_vols.summary[:bps]
+        summary_vols = exec_data_with_vols.summary_bps
 
         # Should still produce valid results
         @test !isnan(summary_vols.classical_slippage[1])
@@ -737,7 +737,7 @@ end
         exec_data = ExecutionData(fills, metadata, tob, peers)
         calculate_slippage!(exec_data)
 
-        summary = exec_data.summary[:bps]
+        summary = exec_data.summary_bps
 
         # Should have results for both executions
         @test nrow(summary) == 2
