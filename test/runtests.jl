@@ -8,4 +8,5 @@ using HighFrequencyCovariance
     include("test_classical_slippage.jl")
     include("test_refined_slippage.jl")
     include("test_vs_vwap.jl")
+    include("test_regression.jl")
 end

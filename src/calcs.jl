@@ -1,4 +1,24 @@
 
+# Convert time difference to hours for volatility scaling in truncation.
+# DateTime periods are auto-converted; numeric times use exec_data.time_to_hours.
+function _duration_hours(t, t0, time_to_hours::Float64)
+    dt = t - t0
+    return dt isa Dates.Period ? Dates.value(Dates.Millisecond(dt)) / 3_600_000.0 : Float64(dt) * time_to_hours
+end
+
+# Find the index of the closest value in a sorted vector using binary search.
+function _closest_sorted(sorted_vec::AbstractVector, val)
+    n = length(sorted_vec)
+    k = searchsortedlast(sorted_vec, val)
+    if k == 0
+        return 1
+    elseif k >= n
+        return n
+    else
+        return abs(sorted_vec[k] - val) <= abs(sorted_vec[k+1] - val) ? k : k + 1
+    end
+end
+
 """
     calculate_slippage!(exec_data::ExecutionData)
 
@@ -37,92 +57,94 @@ function calculate_slippage!(exec_data::ExecutionData)
         on = [:time, :asset => :symbol]
     )
 
-    # Calculate spreadcrossing proportion for each fill
+    # Vectorized spread crossing calculation
     # For buy: 1 = at bid (best), 0 = at ask (worst)
     # For sell: 1 = at ask (best), 0 = at bid (worst)
-    fills_with_tob[!, :spread_cross] = map(eachrow(fills_with_tob)) do row
-        spread = row.ask_price - row.bid_price
-        if spread <= 0
-            return 0.5  # No spread, assume mid
-        end
-        if row.side == "buy"
-            # For buy: at bid is best (1), at ask is worst (0)
-            prop = (row.ask_price - row.price) / spread
-        else
-            # For sell: at ask is best (1), at bid is worst (0)
-            prop = (row.price - row.bid_price) / spread
-        end
-        return clamp(prop, 0.0, 1.0)
-    end
+    spreads = fills_with_tob.ask_price .- fills_with_tob.bid_price
+    safe_spreads = ifelse.(spreads .<= 0, 1.0, spreads)
+    is_buy = fills_with_tob.side .== "buy"
+    raw_prop = ifelse.(is_buy,
+        (fills_with_tob.ask_price .- fills_with_tob.price) ./ safe_spreads,
+        (fills_with_tob.price .- fills_with_tob.bid_price) ./ safe_spreads)
+    fills_with_tob[!, :spread_cross] = ifelse.(spreads .<= 0, 0.5, clamp.(raw_prop, 0.0, 1.0))
+
+    # Compute mid-prices once (shared by VWAP and peers)
+    tob_times = tob.time
+    tob_symbols = tob.symbol
+    tob_mid_prices = (tob.bid_price .+ tob.ask_price) ./ 2
+    mid_prices = DataFrame(time = tob_times, symbol = tob_symbols, mid_price = tob_mid_prices)
 
     # Calculate VWAP metrics if volume data is provided
     if has_volume
-        # Precompute mid-prices from TOB
-        tob_mids = DataFrame(
-            time = tob.time,
-            symbol = tob.symbol,
-            mid_price = (tob.bid_price .+ tob.ask_price) ./ 2
-        )
+        # Pre-group and sort TOB mids by asset for binary search
+        tob_by_asset = Dict{eltype(tob_symbols), Tuple{Vector{eltype(tob_times)}, Vector{Float64}}}()
+        for gdf in groupby(mid_prices, :symbol)
+            sym = gdf.symbol[1]
+            perm = sortperm(gdf.time)
+            tob_by_asset[sym] = (gdf.time[perm], Float64.(gdf.mid_price[perm]))
+        end
 
-        # Get execution time windows
-        exec_times = combine(groupby(fills, [:execution_name, :asset]),
-            :time => minimum => :start_time,
-            :time => maximum => :end_time
-        )
+        # Pre-group and sort volume by asset
+        vol_by_asset = Dict{eltype(volume.symbol), Tuple{Vector{eltype(volume.time_from)}, Vector{eltype(volume.time_to)}, Vector{Float64}}}()
+        for gdf in groupby(volume, :symbol)
+            sym = gdf.symbol[1]
+            perm = sortperm(gdf.time_from)
+            vol_by_asset[sym] = (gdf.time_from[perm], gdf.time_to[perm], Float64.(gdf.volume[perm]))
+        end
 
-        # For each fill, calculate market VWAP from start to that fill's time
-        fills_with_tob[!, :market_vwap] = map(eachrow(fills_with_tob)) do row
-            exec_asset = row.asset
-            exec_name = row.execution_name
-            fill_time = row.time
+        # Pre-compute execution start times as Dict for O(1) lookup
+        exec_start = Dict{Tuple{eltype(fills.execution_name), eltype(fills.asset)}, eltype(fills.time)}()
+        for gdf in groupby(fills, [:execution_name, :asset])
+            exec_start[(gdf.execution_name[1], gdf.asset[1])] = minimum(gdf.time)
+        end
 
-            # Get start time for this execution
-            exec_row = filter(r -> r.execution_name == exec_name && r.asset == exec_asset, exec_times)
-            if nrow(exec_row) == 0
-                return missing
-            end
-            start_time = exec_row[1, :start_time]
+        # Compute market VWAP for each fill using pre-grouped data and binary search
+        n_fills = nrow(fills_with_tob)
+        market_vwaps = Vector{Union{Missing, Float64}}(missing, n_fills)
 
-            # Filter volume data for this asset where interval overlaps [start_time, fill_time]
-            vol_subset = filter(r -> r.symbol == exec_asset &&
-                                     r.time_from <= fill_time &&
-                                     r.time_to >= start_time, volume)
-            if nrow(vol_subset) == 0
-                return missing
-            end
+        ft_asset = fills_with_tob.asset
+        ft_exec = fills_with_tob.execution_name
+        ft_time = fills_with_tob.time
 
-            # Calculate VWAP using TOB mid-prices at interval midpoints
+        for i in 1:n_fills
+            asset = ft_asset[i]
+            start_time = get(exec_start, (ft_exec[i], asset), nothing)
+            isnothing(start_time) && continue
+
+            haskey(vol_by_asset, asset) || continue
+            vol_from, vol_to, vol_vol = vol_by_asset[asset]
+
+            haskey(tob_by_asset, asset) || continue
+            asset_tob_times, asset_tob_prices = tob_by_asset[asset]
+
+            fill_time = ft_time[i]
+
+            # Binary search: only check intervals starting at or before fill_time
+            last_idx = searchsortedlast(vol_from, fill_time)
+            last_idx == 0 && continue
+
             total_value = 0.0
             total_vol = 0.0
-            tob_asset = filter(r -> r.symbol == exec_asset, tob_mids)
 
-            for vol_row in eachrow(vol_subset)
-                # Use midpoint of interval to look up price
-                interval_mid = (vol_row.time_from + vol_row.time_to) / 2
-                # Find closest TOB time
-                if nrow(tob_asset) == 0
-                    continue
-                end
-                time_diffs = abs.(tob_asset.time .- interval_mid)
-                closest_idx = argmin(time_diffs)
-                mid_price = tob_asset.mid_price[closest_idx]
+            for j in 1:last_idx
+                vol_to[j] < start_time && continue
 
-                total_value += mid_price * vol_row.volume
-                total_vol += vol_row.volume
+                interval_mid = (vol_from[j] + vol_to[j]) / 2
+                closest_k = _closest_sorted(asset_tob_times, interval_mid)
+                total_value += asset_tob_prices[closest_k] * vol_vol[j]
+                total_vol += vol_vol[j]
             end
 
-            return total_vol > 0 ? total_value / total_vol : missing
+            if total_vol > 0
+                market_vwaps[i] = total_value / total_vol
+            end
         end
+
+        fills_with_tob[!, :market_vwap] = market_vwaps
     end
 
     if has_peers
         # Full refined slippage calculation
-        mid_prices = DataFrame(
-            time = tob.time,
-            symbol = tob.symbol,
-            mid_price = (tob.bid_price .+ tob.ask_price) ./ 2
-        )
-
         first_fill_times = combine(groupby(fills, :execution_name), :time => minimum => :first_fill_time)
 
         base_prices = innerjoin(
@@ -156,13 +178,27 @@ function calculate_slippage!(exec_data::ExecutionData)
                 on = :peer => :asset
             )
 
-            # Truncate returns at peer_return_truncation * volatility
-            fill_peer_prices[!, :peer_return] = Float64[
-                ismissing(row.volatility) ? row.peer_return :
-                clamp(row.peer_return, -exec_data.peer_return_truncation * row.volatility,
-                      exec_data.peer_return_truncation * row.volatility)
-                for row in eachrow(fill_peer_prices)
-            ]
+            # Truncate returns at peer_return_truncation * volatility * sqrt(duration)
+            # Uses direct column indexing instead of eachrow for performance
+            pp_time = fill_peer_prices.time
+            pp_fft = fill_peer_prices.first_fill_time
+            pp_vol = fill_peer_prices.volatility
+            pp_ret = fill_peer_prices.peer_return
+            tth = exec_data.time_to_hours
+            trunc = exec_data.peer_return_truncation
+            n_pp = length(pp_ret)
+            new_returns = Vector{Float64}(undef, n_pp)
+            for i in 1:n_pp
+                v = pp_vol[i]
+                if ismissing(v)
+                    new_returns[i] = pp_ret[i]
+                else
+                    dur_h = _duration_hours(pp_time[i], pp_fft[i], tth)
+                    bound = trunc * v * sqrt(max(dur_h, 0.0))
+                    new_returns[i] = clamp(pp_ret[i], -bound, bound)
+                end
+            end
+            fill_peer_prices[!, :peer_return] = new_returns
 
             # Remove volatility column (no longer needed)
             select!(fill_peer_prices, Not(:volatility))
@@ -225,6 +261,9 @@ function calculate_slippage!(exec_data::ExecutionData)
         append!(col_order, Symbol.(peer_cols))
         fill_returns = fill_returns[:, col_order]
 
+        # Sort by time within each execution so that last(market_vwap) is chronologically latest
+        sort!(fills_with_counterfactual, [:execution_name, :time])
+
         # Calculate both classical and refined slippage (and vs_vwap if volume available)
         summary_base = combine(groupby(fills_with_counterfactual, :execution_name)) do df
             total_qty = sum(df.quantity)
@@ -247,9 +286,7 @@ function calculate_slippage!(exec_data::ExecutionData)
 
             # Add vs_vwap if volume data is available
             if has_volume && :market_vwap in propertynames(df) && !all(ismissing, df.market_vwap)
-                # Fill VWAP
                 fill_vwap = sum(df.price .* df.quantity) / total_qty
-                # Market VWAP at end of execution (last fill's cumulative VWAP)
                 valid_vwaps = skipmissing(df.market_vwap)
                 if !isempty(valid_vwaps)
                     market_vwap = last(collect(valid_vwaps))
@@ -268,6 +305,10 @@ function calculate_slippage!(exec_data::ExecutionData)
         if has_volume
             push!(fill_cols, :market_vwap)
         end
+
+        # Sort by time within each execution so that last(market_vwap) is chronologically latest
+        sort!(fills_with_tob, [:execution_name, :time])
+
         fill_returns = fills_with_tob[:, fill_cols]
 
         summary_base = combine(groupby(fills_with_tob, :execution_name)) do df
@@ -289,9 +330,7 @@ function calculate_slippage!(exec_data::ExecutionData)
 
             # Add vs_vwap if volume data is available
             if has_volume && :market_vwap in propertynames(df) && !all(ismissing, df.market_vwap)
-                # Fill VWAP
                 fill_vwap = sum(df.price .* df.quantity) / total_qty
-                # Market VWAP at end of execution (last fill's cumulative VWAP)
                 valid_vwaps = skipmissing(df.market_vwap)
                 if !isempty(valid_vwaps)
                     market_vwap = last(collect(valid_vwaps))
